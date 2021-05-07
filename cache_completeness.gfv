@@ -1,0 +1,33 @@
+completeness cache;
+
+disable iff: !rst;
+
+//dependencies:
+
+determination_assumptions:
+    determined(rst);
+    determined(mode);
+    determined(data);
+    determined(address);
+    determined(pseudo_ram);
+
+determination_requirements:
+    determined(cache_and_ram.cache);
+    determined(cache_and_ram.valid_array);
+    determined(cache_and_ram.tag_array);
+    determined(out);
+
+reset_property:
+  reset_a;
+
+property_graph:
+  cache_operation := read_hit, 
+                     read_miss, 
+                     write_hit, 
+                     write_miss;
+
+  reset_a         -> cache_operation;
+  cache_operation -> cache_operation;
+
+
+end completeness;
