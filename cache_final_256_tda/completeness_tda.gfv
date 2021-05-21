@@ -1,0 +1,40 @@
+// @lang=vli @ts=2
+completeness cache;
+
+disable iff: (!rst);
+//inputs: rst, mode,valid_array,tag_array,index,address,data,pseudo_ram,tag;
+
+//dependencies:
+// An input signal is by definition always determined.
+
+determination_assumptions:
+  determined(rst);
+  determined(mode);
+  determined(address);
+  determined(data);
+  determined(pseudo_ram);
+  determined(tag);
+  determined(index);
+  
+  
+determination_requirements:
+    determined(cache);
+    determined(valid_array);
+    determined(tag_array);
+    determined(out);
+    determined(ram);
+    
+reset_property:
+  sva/cache_prop_inst/ops/reset_prop;        //sva/cache_prop_inst/ops/
+
+property_graph:
+  cache_operation := sva/cache_prop_inst/ops/read_hit_prop,  // sva/cache_prop_inst/ops/read_hit_prop
+                     sva/cache_prop_inst/ops/read_miss_prop,  
+                     sva/cache_prop_inst/ops/write_hit_prop, 
+                     sva/cache_prop_inst/ops/write_miss_prop;
+
+  sva/cache_prop_inst/ops/reset_prop -> cache_operation;
+  cache_operation -> cache_operation;
+
+
+end completeness;
