@@ -30,10 +30,10 @@ property lzc_cnt_3;
 assume:
  at t: cl_hit == 4'b1000;
 prove: 
-at  t: cva6_icache/i_lzc_hit/cnt_o  == 2'b11;    // i_lzc_hit is an instantianted module (lzc) in cva6_icache top module. Need to access output signal of
+at  t: i_lzc_hit/cnt_o  == 2'b11;    // i_lzc_hit is an instantianted module (lzc) in cva6_icache top module. Need to access output signal of
                                                  // instantiated module
+					// -> you don't need to  specify the top module here
 end property;
-
 
 property lfsr_8bit;
 disable iff: !rst_ni;
@@ -43,13 +43,14 @@ prove:
 at  t+1: rnd_way == 2'b00 | rnd_way == 2'b01 | rnd_way == 2'b10 | rnd_way == 2'b11;
 end property;
 
-//property data_read_sram;
-//disable iff: !rst_ni;   cva6_icache.gen_sram[0].data_sram.gen_cut[0].gen_mem.i_ram.Mem_DP
-//assume:
-//  at t: cl_req && !cl_we;
-//prove:
-//  at t+1: cl_rdata[0] == cva6_icache/gen_sram[0]/gen_cut[0]/gen_mem/i_ram/Mem_DP[cl_index];
-//end property;
+property data_read_sram;
+disable iff: !rst_ni;   //cva6_icache.gen_sram[0].data_sram.gen_cut[0].gen_mem.i_ram.Mem_DP
+assume:
+  at t: cl_req && !cl_we;
+prove:
+  //at t+1: cl_rdata[0] == cva6_icache/gen_sram[0]/gen_cut[0]/gen_mem/i_ram/Mem_DP[cl_index];
+  //at t+1: cl_rdata[0] == gen_sram[0]/data_sram/gen_cut[0]/gen_mem/i_ram/Mem_DP[cl_index];  		// This should be it according to the syntax...
+end property;
 
 
 
