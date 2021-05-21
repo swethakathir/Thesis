@@ -1,0 +1,182 @@
+module cache_prop(address,data,rst,clk,mode,pseudo_ram,ram,out);
+
+default clocking default_clk @(posedge clk); endclocking
+`include "tidal.sv"
+
+input logic [31:0] address;
+input logic [31:0] data;
+input logic clk;
+input logic rst;
+input logic mode; //mode equal to 1 when we write and equal to 0 when we read
+input logic [31:0] pseudo_ram;
+input logic [31:0] ram;
+input logic [31:0] out;
+
+`define index cache_and_ram.index
+`define cache cache_and_ram.cache
+`define valid_array cache_and_ram.valid_array
+`define tag_array cache_and_ram.tag_array
+`define tag cache_and_ram.tag
+
+`begin_tda(ops)
+
+sequence reset_sequence;
+    !rst;
+endsequence
+
+property reset;
+  reset_sequence 
+  |=> 
+    // Internal States
+  t##0(`cache == 0) and 
+  t##0  (`valid_array == 0) and 
+  t##0  (`tag_array == 0) and
+    // Outputs
+  t##0  (ram == 0) and
+  t##0 (out == 0);
+endproperty
+
+
+property read_hit;
+    t ##0 !mode and
+    t ##0 ((`valid_array[`index] == 1) && (`tag_array[`index] == `tag))
+    implies
+    // Internal States
+    t ##1 (`cache == $past(`cache)) and
+    t ##1 (`valid_array == $past(`valid_array)) and 
+    t ##1 (`tag_array == $past(`tag_array)) and
+    // Outputs
+    t ##1 (out == `cache[$past(`index)]) and
+    t ##1 (ram == $past(ram));
+endproperty
+
+
+property write_hit;
+    t ##0 mode and
+    t ##0 ((`valid_array[`index] == 1) && (`tag_array[`index] == `tag))
+    implies 
+    // Internal States
+    t ##1 (`cache[$past(`index)] == $past(data)) and
+    t ##1 (`valid_array == $past(`valid_array)) and 
+    t ##1 (`tag_array == $past(`tag_array)) and
+    // Outputs
+    t ##1 (out == $past(out)) and
+    t ##1 (ram == $past(data));
+endproperty
+
+
+property write_miss;
+    t ##0 mode and
+    t ##0 (`valid_array[`index] != 1) || (`tag_array[`index] != `tag)
+    implies 
+    // Internal States
+    t ##1 (`cache == $past(`cache)) and
+    t ##1 (`valid_array == $past(`valid_array)) and 
+    t ##1 (`tag_array == $past(`tag_array)) and
+    // Outputs
+    t ##1 (out == $past(out)) and
+    t ##1 (ram == $past(data));
+endproperty
+
+
+property read_miss;
+    t ##0 !mode and 
+    t ##0 (`valid_array[`index] != 1) || (`tag_array[`index] != `tag)
+    implies 
+    // Internal States
+    t ##1 (`valid_array[$past(`index)] == 1) and 
+    t ##1 (`tag_array[$past(`index)] == $past(address[11:6])) and
+    t ##1 (`cache[0] == (($past(`index) == 0) ? $past(pseudo_ram) : $past(`cache[0]))) and
+    t ##1 (`cache[1] == (($past(`index) == 1) ? $past(pseudo_ram) : $past(`cache[1]))) and
+    t ##1 (`cache[2] == (($past(`index) == 2) ? $past(pseudo_ram) : $past(`cache[2]))) and
+    t ##1 (`cache[3] == (($past(`index) == 3) ? $past(pseudo_ram) : $past(`cache[3]))) and
+    t ##1 (`cache[4] == (($past(`index) == 4) ? $past(pseudo_ram) : $past(`cache[4]))) and
+    t ##1 (`cache[5] == (($past(`index) == 5) ? $past(pseudo_ram) : $past(`cache[5]))) and
+    t ##1 (`cache[6] == (($past(`index) == 6) ? $past(pseudo_ram) : $past(`cache[6]))) and
+    t ##1 (`cache[7] == (($past(`index) == 7) ? $past(pseudo_ram) : $past(`cache[7]))) and
+    t ##1 (`cache[8] == (($past(`index) == 8) ? $past(pseudo_ram) : $past(`cache[8]))) and
+    t ##1 (`cache[9] == (($past(`index) == 9) ? $past(pseudo_ram) : $past(`cache[9]))) and
+    t ##1 (`cache[10] == (($past(`index) == 10) ? $past(pseudo_ram) : $past(`cache[10]))) and
+    t ##1 (`cache[11] == (($past(`index) == 11) ? $past(pseudo_ram) : $past(`cache[11]))) and
+    t ##1 (`cache[12] == (($past(`index) == 12) ? $past(pseudo_ram) : $past(`cache[12]))) and
+    t ##1 (`cache[13] == (($past(`index) == 13) ? $past(pseudo_ram) : $past(`cache[13]))) and
+    t ##1 (`cache[14] == (($past(`index) == 14) ? $past(pseudo_ram) : $past(`cache[14]))) and
+    t ##1 (`cache[15] == (($past(`index) == 15) ? $past(pseudo_ram) : $past(`cache[15]))) and
+    t ##1 (`cache[16] == (($past(`index) == 16) ? $past(pseudo_ram) : $past(`cache[16]))) and
+    t ##1 (`cache[17] == (($past(`index) == 17) ? $past(pseudo_ram) : $past(`cache[17]))) and
+    t ##1 (`cache[18] == (($past(`index) == 18) ? $past(pseudo_ram) : $past(`cache[18]))) and
+    t ##1 (`cache[19] == (($past(`index) == 19) ? $past(pseudo_ram) : $past(`cache[19]))) and
+    t ##1 (`cache[20] == (($past(`index) == 20) ? $past(pseudo_ram) : $past(`cache[20]))) and
+    t ##1 (`cache[21] == (($past(`index) == 21) ? $past(pseudo_ram) : $past(`cache[21]))) and
+    t ##1 (`cache[22] == (($past(`index) == 22) ? $past(pseudo_ram) : $past(`cache[22]))) and
+    t ##1 (`cache[23] == (($past(`index) == 23) ? $past(pseudo_ram) : $past(`cache[23]))) and
+    t ##1 (`cache[24] == (($past(`index) == 24) ? $past(pseudo_ram) : $past(`cache[24]))) and
+    t ##1 (`cache[25] == (($past(`index) == 25) ? $past(pseudo_ram) : $past(`cache[25]))) and
+    t ##1 (`cache[26] == (($past(`index) == 26) ? $past(pseudo_ram) : $past(`cache[26]))) and
+    t ##1 (`cache[27] == (($past(`index) == 27) ? $past(pseudo_ram) : $past(`cache[27]))) and
+    t ##1 (`cache[28] == (($past(`index) == 28) ? $past(pseudo_ram) : $past(`cache[28]))) and
+    t ##1 (`cache[29] == (($past(`index) == 29) ? $past(pseudo_ram) : $past(`cache[29]))) and
+    t ##1 (`cache[30] == (($past(`index) == 30) ? $past(pseudo_ram) : $past(`cache[30]))) and
+    t ##1 (`cache[31] == (($past(`index) == 31) ? $past(pseudo_ram) : $past(`cache[31]))) and
+    t ##1 (`cache[32] == (($past(`index) == 32) ? $past(pseudo_ram) : $past(`cache[32]))) and
+    t ##1 (`cache[33] == (($past(`index) == 33) ? $past(pseudo_ram) : $past(`cache[33]))) and
+    t ##1 (`cache[34] == (($past(`index) == 34) ? $past(pseudo_ram) : $past(`cache[34]))) and
+    t ##1 (`cache[35] == (($past(`index) == 35) ? $past(pseudo_ram) : $past(`cache[35]))) and
+    t ##1 (`cache[36] == (($past(`index) == 36) ? $past(pseudo_ram) : $past(`cache[36]))) and
+    t ##1 (`cache[37] == (($past(`index) == 37) ? $past(pseudo_ram) : $past(`cache[37]))) and
+    t ##1 (`cache[38] == (($past(`index) == 38) ? $past(pseudo_ram) : $past(`cache[38]))) and
+    t ##1 (`cache[39] == (($past(`index) == 39) ? $past(pseudo_ram) : $past(`cache[39]))) and
+    t ##1 (`cache[40] == (($past(`index) == 40) ? $past(pseudo_ram) : $past(`cache[40]))) and
+    t ##1 (`cache[41] == (($past(`index) == 41) ? $past(pseudo_ram) : $past(`cache[41]))) and
+    t ##1 (`cache[42] == (($past(`index) == 42) ? $past(pseudo_ram) : $past(`cache[42]))) and
+    t ##1 (`cache[43] == (($past(`index) == 43) ? $past(pseudo_ram) : $past(`cache[43]))) and
+    t ##1 (`cache[44] == (($past(`index) == 44) ? $past(pseudo_ram) : $past(`cache[44]))) and
+    t ##1 (`cache[45] == (($past(`index) == 45) ? $past(pseudo_ram) : $past(`cache[45]))) and
+    t ##1 (`cache[45] == (($past(`index) == 45) ? $past(pseudo_ram) : $past(`cache[45]))) and
+    t ##1 (`cache[46] == (($past(`index) == 46) ? $past(pseudo_ram) : $past(`cache[46]))) and
+    t ##1 (`cache[47] == (($past(`index) == 47) ? $past(pseudo_ram) : $past(`cache[47]))) and
+    t ##1 (`cache[48] == (($past(`index) == 48) ? $past(pseudo_ram) : $past(`cache[48]))) and
+    t ##1 (`cache[49] == (($past(`index) == 49) ? $past(pseudo_ram) : $past(`cache[49]))) and
+    t ##1 (`cache[50] == (($past(`index) == 50) ? $past(pseudo_ram) : $past(`cache[50]))) and
+    t ##1 (`cache[51] == (($past(`index) == 51) ? $past(pseudo_ram) : $past(`cache[51]))) and
+    t ##1 (`cache[52] == (($past(`index) == 52) ? $past(pseudo_ram) : $past(`cache[52]))) and
+    t ##1 (`cache[53] == (($past(`index) == 53) ? $past(pseudo_ram) : $past(`cache[53]))) and
+    t ##1 (`cache[54] == (($past(`index) == 54) ? $past(pseudo_ram) : $past(`cache[54]))) and
+    t ##1 (`cache[55] == (($past(`index) == 55) ? $past(pseudo_ram) : $past(`cache[55]))) and
+    t ##1 (`cache[56] == (($past(`index) == 56) ? $past(pseudo_ram) : $past(`cache[56]))) and
+    t ##1 (`cache[57] == (($past(`index) == 57) ? $past(pseudo_ram) : $past(`cache[57]))) and
+    t ##1 (`cache[58] == (($past(`index) == 58) ? $past(pseudo_ram) : $past(`cache[58]))) and
+    t ##1 (`cache[59] == (($past(`index) == 59) ? $past(pseudo_ram) : $past(`cache[59]))) and
+    t ##1 (`cache[60] == (($past(`index) == 60) ? $past(pseudo_ram) : $past(`cache[60]))) and
+    t ##1 (`cache[61] == (($past(`index) == 61) ? $past(pseudo_ram) : $past(`cache[61]))) and
+    t ##1 (`cache[62] == (($past(`index) == 62) ? $past(pseudo_ram) : $past(`cache[62]))) and
+    t ##1 (`cache[63] == (($past(`index) == 63) ? $past(pseudo_ram) : $past(`cache[63]))) and
+    
+    t ##1 (`cache[$past(`index)] == $past(pseudo_ram)) and
+    // Outputs
+    t ##1 (out == $past(pseudo_ram)) and
+    t ##1 (ram == $past(ram));
+endproperty
+
+
+read_hit_prop:assert property(@(posedge clk) disable iff(!rst) read_hit); 
+
+//for (genvar i = 0; i < 64; i = i + 1) begin
+read_miss_prop:assert property(@(posedge clk) disable iff(!rst) read_miss);
+//end
+
+write_miss_prop:assert property(@(posedge clk) disable iff(!rst) write_miss);
+
+write_hit_prop:assert property(@(posedge clk) disable iff(!rst) write_hit); 
+
+reset_prop:assert property(@(posedge clk) reset);
+
+`end_tda
+
+endmodule
+
+//---------------------------------------------------------------------------------------------
+bind cache_and_ram cache_prop cache_prop_inst(.*);
+//---------------------------------------------------------------------------------------------
+
+

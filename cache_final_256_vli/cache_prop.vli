@@ -1,0 +1,114 @@
+global trigger: rose(clk);
+property read_hit;
+disable iff: !rst;
+assume:
+ at t: !mode;
+ at t: ((valid_array[index] == 1) && (tag_array[index] == tag));
+prove: 
+at  t+1:  (cache == prev(cache));
+at  t+1:  (valid_array == prev(valid_array));
+at  t+1:  (tag_array == prev(tag_array));
+at  t+1:  (ram == prev(ram));
+at  t+1:  (out == cache[prev(index)]);
+//at  t+1:  (prev(index) == prev(address) mod 64);
+//at  t+1:  (prev(tag) == (prev(address) mod 4096) >> 6);
+end property;
+
+
+property write_hit;
+disable iff: !rst;
+assume:
+ at t: mode;
+ at t: ((valid_array[index] == 1) && (tag_array[index] == tag));
+prove: 
+at  t+1:  (cache[prev(index)] == prev(data));
+at t+1: foreach r in 0..63:
+          if (r != prev(index))
+            cache[r] == prev(cache[r]);
+          endif;
+        end foreach;
+
+at  t+1:  (valid_array == prev(valid_array));
+at  t+1:  (tag_array == prev(tag_array));
+at  t+1:  (ram == prev(data));
+at  t+1:  (out == prev(out));
+//at  t+1:  (prev(index) == prev(address) mod 64);
+//at  t+1:  (prev(tag) == (prev(address) mod 4096) >> 6);
+
+end property;
+
+
+property write_miss;
+disable iff: !rst;
+assume:
+ at t: mode;
+ at t: ((valid_array[index] != 1) || (tag_array[index] != tag));
+prove: 
+at  t+1:  (cache == prev(cache));
+at  t+1:  (valid_array == prev(valid_array));
+at  t+1:  (tag_array == prev(tag_array));
+at  t+1:  (ram == prev(data));
+at  t+1:  (out == prev(out));
+//at  t+1:  (prev(index) == prev(address) mod 64);
+//at  t+1:  (prev(tag) == (prev(address) mod 4096) >> 6);
+
+end property;
+
+
+
+property read_miss;
+disable iff: !rst;
+assume:
+ at t: !mode;
+ at t: ((valid_array[index] != 1) || (tag_array[index] != tag));
+prove:
+at  t+1:  (valid_array[prev(index)] == 1);
+at  t+1: foreach r in 0..63:
+          if (r != prev(index))
+           valid_array[r] == prev(valid_array[r]);
+          endif;
+        end foreach;
+at  t+1:  (tag_array[prev(index)] == prev(address[11:6]));
+at  t+1: foreach r in 0..63:
+          if (r != prev(index))
+            tag_array[r] == prev(tag_array[r]);
+          endif;
+        end foreach;
+at  t+1:  (out == prev(pseudo_ram));
+at  t+1:  (temp_out == prev(pseudo_ram));
+at  t+1:  (ram == prev(ram));
+at  t+1:  (cache[prev(index)] == prev(pseudo_ram));
+at  t+1:   foreach r in 0..63:
+            if (r != prev(index))
+              cache[r] == prev(cache[r]);
+            endif;
+          end foreach;
+//at  t+1:  (prev(index) == prev(address) mod 64);
+//at  t+1:  (prev(tag) == (prev(address) mod 4096) >> 6);
+end property;
+
+
+
+property reset_prop;
+assume:
+ reset_sequence;
+// at t: !rst;
+prove: 
+at t: foreach r in 0..63:  
+           cache[r] == 0;
+        end foreach;
+                       
+at  t:  (valid_array == 0);
+at t: foreach r in 0..63:  
+           tag_array[r] == 0;
+        end foreach;
+at  t:  (ram == 0);
+at  t:  (out == 0);
+//at  t:  (index == 0);
+//at  t:  (tag == 0);
+end property;
+
+
+    
+    
+    
