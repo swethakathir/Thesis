@@ -1,0 +1,31 @@
+// @lang=vli @ts=2
+completeness cache;
+
+disable iff: (!rst);
+inputs: rst,mode,address,data,pseudo_ram,index,tag;
+
+//dependencies:
+
+determination_requirements:
+    determined(cache);
+    determined(valid_array);
+    determined(tag_array);
+//    determined(index);
+ //   determined(tag);
+    determined(out);
+    determined(ram);
+    
+reset_property:
+  reset_prop;        //sva/cache_prop_inst/ops/
+
+property_graph:
+  cache_operation := read_hit,  // sva/cache_prop_inst/ops/read_hit_prop
+                     read_miss,  
+                     write_hit, 
+                     write_miss;
+
+  reset_prop -> cache_operation;
+  cache_operation -> cache_operation;
+
+
+end completeness;
