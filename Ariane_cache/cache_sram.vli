@@ -1,0 +1,83 @@
+property data_read_sram;
+disable iff: !Rst_RBI;
+assume:
+  at t: CSel_SI && !WrEn_SI;
+prove:
+  at t+1: RdData_DO == Mem_DP[prev(Addr_DI)];
+  at t+1: (Mem_DP == prev(Mem_DP));
+ // at t+1: RdData_DN == Mem_DP[prev(Addr_DI)];
+end property;
+
+
+property data_write_sram;
+disable iff: !Rst_RBI;
+freeze:
+	ben_si = BEn_SI  @ t;
+assume:
+  at t: CSel_SI && WrEn_SI;
+prove:
+  at t+1: if (ben_si[0])
+            Mem_DP[prev(Addr_DI)][7:0] == prev(WrData_DI[7:0]);
+          endif;
+  at t+1: if (ben_si[1])
+            Mem_DP[prev(Addr_DI)][15:8] == prev(WrData_DI[15:8]);
+          endif;
+  at t+1: if (ben_si[2])
+            Mem_DP[prev(Addr_DI)][23:16] == prev(WrData_DI[23:16]);
+          endif;
+  at t+1: if (ben_si[2])
+            Mem_DP[prev(Addr_DI)][23:16] == prev(WrData_DI[23:16]);
+          endif;
+  at t+1: if (ben_si[3])
+            Mem_DP[prev(Addr_DI)][31:24] == prev(WrData_DI[31:24]);
+          endif;
+  at t+1: if (ben_si[4])
+            Mem_DP[prev(Addr_DI)][39:32] == prev(WrData_DI[39:32]);
+          endif;
+  at t+1: if (ben_si[5])
+            Mem_DP[prev(Addr_DI)][47:40] == prev(WrData_DI[47:40]);
+          endif;
+  at t+1: if (ben_si[6])
+            Mem_DP[prev(Addr_DI)][55:48] == prev(WrData_DI[55:48]);
+          endif;
+  at t+1: if (ben_si[7])
+            Mem_DP[prev(Addr_DI)][63:56] == prev(WrData_DI[63:56]);
+          endif;
+  at t+1: if (!ben_si[0] && !ben_si[1] && !ben_si[2] && !ben_si[3] && !ben_si[4] && !ben_si[5] && !ben_si[6] && !ben_si[7])
+            Mem_DP[prev(Addr_DI)] == prev(Mem_DP[Addr_DI]);
+          endif;
+  at t+1: foreach r in 0..255:
+          if (r != prev(Addr_DI))
+            Mem_DP[r] == prev(Mem_DP[r]);
+          endif;
+        end foreach;
+   at t+1:  RdData_DO == prev(Mem_DP[Addr_DI]);
+ // at t+1: RdData_DN == prev(Mem_DP[Addr_DI]);
+end property;
+
+
+
+property reset_prop;
+assume:
+  reset_sequence;
+prove: 
+  at t: foreach r in 0..255:  
+           Mem_DP[r] == 0;
+        end foreach;
+  at t: RdData_DO == 0;
+ // at t: RdData_DN == 0;
+end property;
+
+
+property data_read_csel_low;
+disable iff: !Rst_RBI;
+assume:
+  at t: !CSel_SI;
+//  at t: WrEn_SI || !WrEn_SI;
+prove:
+  at t+1: RdData_DO == prev(RdData_DO);
+  at t+1: (Mem_DP == prev(Mem_DP));
+ // at t+1: RdData_DN == prev(RdData_DN);
+end property;
+
+

@@ -1,0 +1,36 @@
+// @lang=vli @ts=2
+completeness ariane_cache;
+
+disable iff: (!Rst_RBI);
+inputs: Rst_RBI,CSel_SI,WrEn_SI,BEn_SI,WrData_DI,Addr_DI;
+
+//dependencies:
+
+determination_requirements:
+  //  if(BEn_SI[0]) determined(Mem_DP[Addr_DI][7:0]); endif;
+  //  if(BEn_SI[1]) determined(Mem_DP[Addr_DI][15:8]); endif;
+  //  if(BEn_SI[2]) determined(Mem_DP[Addr_DI][23:16]); endif;
+  //  if(BEn_SI[3]) determined(Mem_DP[Addr_DI][31:24]); endif;
+  //  if(BEn_SI[4]) determined(Mem_DP[Addr_DI][39:32]); endif;
+  //  if(BEn_SI[5]) determined(Mem_DP[Addr_DI][47:40]); endif;
+  //  if(BEn_SI[6]) determined(Mem_DP[Addr_DI][55:48]); endif;
+ //   if(BEn_SI[7]) determined(Mem_DP[Addr_DI][63:56]); endif;
+    determined(Mem_DP);
+    determined(RdData_DO);
+ //   determined(RdData_DN);
+    
+
+    
+reset_property:
+  reset_prop;        //sva/cache_prop_inst/ops/
+
+property_graph:
+  cache_operation := data_read_sram,  // sva/cache_prop_inst/ops/read_hit_prop
+                     data_write_sram,
+                     data_read_csel_low;
+
+  reset_prop -> cache_operation;
+  cache_operation -> cache_operation;
+
+
+end completeness;

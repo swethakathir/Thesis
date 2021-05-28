@@ -38,10 +38,13 @@ module SyncSpRamBeNx64
       automatic logic [63:0] val;
       if(Rst_RBI == 1'b0 && SIM_INIT>0) begin
         for(int k=0; k<DATA_DEPTH;k++) begin
-          if(SIM_INIT==1) val = '0;
- //     `ifndef VERILATOR
+          if(SIM_INIT==1) begin
+          val = '0;
+          RdData_DN = '0;
+          end
+       `ifndef VERILATOR
           else if(SIM_INIT==2) void'(randomize(val));
- //     `endif
+      `endif
           else val = 64'hdeadbeefdeadbeef;
           Mem_DP[k] = val;
         end
