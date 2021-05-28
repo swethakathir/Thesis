@@ -1,3 +1,15 @@
+property reset_prop;
+assume:
+  reset_sequence;
+prove: 
+  at t: foreach r in 0..255:  
+           Mem_DP[r] == 0;
+        end foreach;
+  at t: RdData_DO == 0;
+ // at t: RdData_DN == 0;
+end property;
+
+
 property data_read_sram;
 disable iff: !Rst_RBI;
 assume:
@@ -12,60 +24,27 @@ end property;
 property data_write_sram;
 disable iff: !Rst_RBI;
 freeze:
-	ben_si = BEn_SI  @ t;
+	ben_si_t = BEn_SI@t,
+        addr_di_t = Addr_DI@t;
 assume:
   at t: CSel_SI && WrEn_SI;
 prove:
-  at t+1: if (ben_si[0])
-            Mem_DP[prev(Addr_DI)][7:0] == prev(WrData_DI[7:0]);
+  // This statement specifies Mem_DP[Addr_DI]
+  at t+1: foreach i in 0..7:
+            if (ben_si_t[i])
+              Mem_DP[addr_di_t][i*8+7:i*8] == prev(WrData_DI[i*8+7:i*8]);
+            else
+              Mem_DP[addr_di_t][i*8+7:i*8] == prev(Mem_DP[addr_di_t][i*8+7:i*8]);
           endif;
-  at t+1: if (ben_si[1])
-            Mem_DP[prev(Addr_DI)][15:8] == prev(WrData_DI[15:8]);
-          endif;
-  at t+1: if (ben_si[2])
-            Mem_DP[prev(Addr_DI)][23:16] == prev(WrData_DI[23:16]);
-          endif;
-  at t+1: if (ben_si[2])
-            Mem_DP[prev(Addr_DI)][23:16] == prev(WrData_DI[23:16]);
-          endif;
-  at t+1: if (ben_si[3])
-            Mem_DP[prev(Addr_DI)][31:24] == prev(WrData_DI[31:24]);
-          endif;
-  at t+1: if (ben_si[4])
-            Mem_DP[prev(Addr_DI)][39:32] == prev(WrData_DI[39:32]);
-          endif;
-  at t+1: if (ben_si[5])
-            Mem_DP[prev(Addr_DI)][47:40] == prev(WrData_DI[47:40]);
-          endif;
-  at t+1: if (ben_si[6])
-            Mem_DP[prev(Addr_DI)][55:48] == prev(WrData_DI[55:48]);
-          endif;
-  at t+1: if (ben_si[7])
-            Mem_DP[prev(Addr_DI)][63:56] == prev(WrData_DI[63:56]);
-          endif;
-  at t+1: if (!ben_si[0] && !ben_si[1] && !ben_si[2] && !ben_si[3] && !ben_si[4] && !ben_si[5] && !ben_si[6] && !ben_si[7])
-            Mem_DP[prev(Addr_DI)] == prev(Mem_DP[Addr_DI]);
-          endif;
-  at t+1: foreach r in 0..255:
-          if (r != prev(Addr_DI))
-            Mem_DP[r] == prev(Mem_DP[r]);
+          end foreach;
+  // This statement specifies all other entries in Mem_DP
+  at t+1: foreach i in 0..255:
+          if (i != addr_di_t)
+            Mem_DP[i] == prev(Mem_DP[i]);
           endif;
         end foreach;
-   at t+1:  RdData_DO == prev(Mem_DP[Addr_DI]);
- // at t+1: RdData_DN == prev(Mem_DP[Addr_DI]);
-end property;
-
-
-
-property reset_prop;
-assume:
-  reset_sequence;
-prove: 
-  at t: foreach r in 0..255:  
-           Mem_DP[r] == 0;
-        end foreach;
-  at t: RdData_DO == 0;
- // at t: RdData_DN == 0;
+   at t+1:  RdData_DO == prev(Mem_DP[addr_di_t]);
+ // at t+1: RdData_DN == prev(Mem_DP[addr_di_t]);
 end property;
 
 
