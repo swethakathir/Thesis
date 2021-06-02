@@ -1,6 +1,6 @@
 module cache #(
-  parameter ADDR_WIDTH = 7,
-  parameter DATA_DEPTH = 128, // usually 2**ADDR_WIDTH, but can be lower 7,128 = for 8kb ; 9,512 = 32kb; 10,1024 = 64kb; 8,256 = 16kb; 6,64 = 4kb; 
+  parameter ADDR_WIDTH = 8,
+  parameter DATA_DEPTH = 256, // usually 2**ADDR_WIDTH, but can be lower 7,128 = for 8kb ; 9,512 = 32kb; 10,1024 = 64kb; 8,256 = 16kb; 6,64 = 4kb; 
   parameter OUT_REGS   = 0,    // set to 1 to enable outregs 5,32 = 2kb; 4,16 = 1kb;
   parameter SIM_INIT   = 1     // for simulation only, will not be synthesized
                                // 0: no init, 1: zero init, 2: random init, 3: deadbeef init

@@ -5,7 +5,7 @@ freeze:
   addr_di_t = Addr_DI@t;
 assume:
   at t: CSel_SI && WrEn_SI;
-  at t: foreach r in 0..127:  
+  at t: foreach r in 0..255:  
            cache1_sram/Mem_DP[r] == 0;
         end foreach;
 prove:
@@ -18,7 +18,7 @@ prove:
           endif;
           end foreach;
   // This statement specifies all other entries in Mem_DP
-  at t+1: foreach i in 0..127:
+  at t+1: foreach i in 0..255:
           if (i != addr_di_t)
             cache1_sram/Mem_DP[i] == prev(cache1_sram/Mem_DP[i]);
           endif;
@@ -35,7 +35,7 @@ freeze:
   addr_di_t = Addr_DI@t;
 assume:
   at t: CSel_SI && WrEn_SI;
-  at t: foreach r in 0..127:  
+  at t: foreach r in 0..255:  
            cache1_sram/Mem_DP[r] == 0;
         end foreach;
 //  at t: RdData_DO_1 == RdData_DO_2;
@@ -44,18 +44,19 @@ prove:
                                                                             // flushed state and cache_2 in arbitrary state
   at t+1: foreach i in 0..7:
             if (ben_si_t[i])
-              cache1_sram/Mem_DP[addr_di_t][i*8+7:i*8] == cache2_sram/Mem_DP[addr_di_t][i*8+7:i*8];
+              cache2_sram/Mem_DP[addr_di_t][i*8+7:i*8] == cache1_sram/Mem_DP[addr_di_t][i*8+7:i*8];
             else
-              cache1_sram/Mem_DP[addr_di_t][i*8+7:i*8] == prev(cache1_sram/Mem_DP[addr_di_t][i*8+7:i*8]);
-              // cache2_sram/Mem_DP[addr_di_t][i*8+7:i*8] == prev(cache2_sram/Mem_DP[addr_di_t][i*8+7:i*8]); // Else block can't hold multiline statements
+              // cache1_sram/Mem_DP[addr_di_t][i*8+7:i*8] == prev(cache1_sram/Mem_DP[addr_di_t][i*8+7:i*8]);
+              cache2_sram/Mem_DP[addr_di_t][i*8+7:i*8] == prev(cache2_sram/Mem_DP[addr_di_t][i*8+7:i*8]); // Else block can't hold multiline statements
           endif;
           end foreach;
-   at t+1: foreach i in 0..127:
+   at t+1: foreach i in 0..255:
           if (i != addr_di_t)
             cache2_sram/Mem_DP[i] == prev(cache2_sram/Mem_DP[i]);
           endif;
         end foreach;
 
+  at t+1: RdData_DO_2 == prev(cache2_sram/Mem_DP[addr_di_t]);
  //  at t+1: RdData_DO_1 == RdData_DO_2; //output is not same because in design (RdData_DN <= Mem_DP[Addr_DI]) at t+1 it takes the value of Mem_dp at t.
                                          // at t cache_1 might be in flushed state and so at t+1 RdData_DO_1 = 0 and cache_2 in arbitraty state, 
                                          //RdData_DO_2=rand value. In this design output will change after write and it is the old value of Mem_dp(before 
