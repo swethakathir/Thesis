@@ -1,0 +1,154 @@
+property base_write_miss_not_valid;
+disable iff: !i_Reset_n;
+freeze:
+	index = cache_instance1/i_Index@t,
+  tag = cache_instance1/i_Tag@t,
+	i_write_data = i_Write_Data@t,
+	block_offset = cache_instance1/i_BlockOffset@t,
+	o_mem_data = o_MEM_Data_1@t,
+	mem_data_0 = i_MEM_Data@t+1,
+	mem_data_1 = i_MEM_Data@t+2,
+	mem_data_2 = i_MEM_Data@t+3,
+	mem_data_3 = i_MEM_Data@t+4;
+assume:
+at t: i_Valid && !o_Valid_1;
+at t: !cache_instance1/Valid_Array[index];
+at t: cache_instance1/Tag_Array[index] != tag;
+at t: foreach r in 0..511:  
+           cache_instance1/databank/mem[r] == 0;
+        end foreach;
+at t: foreach r in 0..511:  
+           cache_instance1/databank1/mem[r] == 0;
+        end foreach;
+at t: foreach r in 0..511:  
+           cache_instance1/databank2/mem[r] == 0;
+        end foreach;
+at t: foreach r in 0..511:  
+           cache_instance1/databank3/mem[r] == 0;
+        end foreach;
+at t: cache_instance1/State == cache_instance1/STATE_READY;
+at t: !i_Read_Write_n;
+during[t+1,t+4]: i_MEM_Valid;
+during[t+1,t+3]: !i_MEM_Last;
+at t+4: i_MEM_Last;
+prove:
+//at t+1: o_MEM_Valid_1;
+at t+1: o_MEM_Read_Write_n_1;
+at t+3: if (block_offset == 0)
+          cache_instance1/databank/mem[index] == i_write_data;
+        else
+          cache_instance1/databank/mem[index] == mem_data_0;
+        endif;
+at t+3: foreach i in 0..511:
+          if (i != index)
+            cache_instance1/databank/mem[i] == prev(cache_instance1/databank/mem[i]);
+          endif;
+        end foreach;
+at t+4: if (block_offset == 1)
+          cache_instance1/databank1/mem[index] == i_write_data;
+        else
+          cache_instance1/databank1/mem[index] == mem_data_1;
+        endif;
+at t+4: foreach i in 0..511:
+          if (i != index)
+            cache_instance1/databank1/mem[i] == prev(cache_instance1/databank1/mem[i]);
+          endif;
+        end foreach;
+at t+5: if (block_offset == 2)
+          cache_instance1/databank2/mem[index] == i_write_data;
+        else
+          cache_instance1/databank2/mem[index] == mem_data_2;
+        endif;
+at t+5: foreach i in 0..511:
+          if (i != index)
+            cache_instance1/databank2/mem[i] == prev(cache_instance1/databank2/mem[i]);
+          endif;
+        end foreach;
+at t+6: if (block_offset == 3)
+          cache_instance1/databank3/mem[index] == i_write_data;
+        else
+          cache_instance1/databank3/mem[index] == mem_data_3;   
+        endif;
+at t+6: foreach i in 0..511:
+          if (i != index)
+            cache_instance1/databank3/mem[i] == prev(cache_instance1/databank3/mem[i]);
+          endif;
+        end foreach;
+//at t+3: if(block_offset == 0)
+//          o_Data == data0; 
+//        endif;
+//at t+4: if(block_offset == 1)
+//          o_Data == data1; 
+//        endif;
+at t+5: cache_instance1/Dirty_Array[index];
+at t+5: !o_MEM_Valid_1;
+at t+6: o_Valid_1;
+at t+7: o_Ready_1;
+at t+7: o_MEM_Data_1 == o_mem_data;              //Need to verify o_Mem_address,o_data
+end property;
+
+property S2qed_write_miss_not_valid;
+disable iff: !i_Reset_n;
+freeze:
+	index = cache_instance1/i_Index@t,
+  tag = cache_instance1/i_Tag@t,
+  o_mem_data_1 = o_MEM_Data_1@t,
+	o_mem_data_2 = o_MEM_Data_2@t;
+assume:
+at t: i_Valid && !o_Valid_1 && !o_Valid_2;
+at t: !cache_instance1/Valid_Array[index] &&  !cache_instance2/Valid_Array[index];
+at t: cache_instance1/Tag_Array[index] != tag && cache_instance2/Tag_Array[index] != tag ; 
+at t: foreach r in 0..511:  
+           cache_instance1/databank/mem[r] == 0;
+        end foreach;
+at t: foreach r in 0..511:  
+           cache_instance1/databank1/mem[r] == 0;
+        end foreach;
+at t: foreach r in 0..511:  
+           cache_instance1/databank2/mem[r] == 0;
+        end foreach;
+at t: foreach r in 0..511:  
+           cache_instance1/databank3/mem[r] == 0;
+        end foreach;
+at t: cache_instance1/State == cache_instance1/STATE_READY;
+at t: cache_instance2/State == cache_instance2/STATE_READY;
+at t: !i_Read_Write_n;
+during[t+1,t+4]: i_MEM_Valid;
+during[t+1,t+3]: !i_MEM_Last;
+at t+4: i_MEM_Last;
+prove:
+//at t+1: o_MEM_Valid_1;
+at t+1: o_MEM_Read_Write_n_1;
+at t+3: cache_instance1/databank/mem[index] == cache_instance2/databank/mem[index];
+at t+3: foreach i in 0..511:
+          if (i != index)
+            cache_instance2/databank/mem[i] == prev(cache_instance2/databank/mem[i]);
+          endif;
+        end foreach;
+at t+4: cache_instance1/databank1/mem[index] == cache_instance2/databank1/mem[index];
+at t+4: foreach i in 0..511:
+          if (i != index)
+            cache_instance2/databank1/mem[i] == prev(cache_instance2/databank1/mem[i]);
+          endif;
+        end foreach;
+at t+5: cache_instance1/databank2/mem[index] == cache_instance2/databank2/mem[index];
+at t+5: foreach i in 0..511:
+          if (i != index)
+            cache_instance2/databank2/mem[i] == prev(cache_instance2/databank2/mem[i]);
+          endif;
+        end foreach;
+at t+6: cache_instance1/databank3/mem[index] == cache_instance2/databank3/mem[index];
+at t+6: foreach i in 0..511:
+          if (i != index)
+            cache_instance2/databank3/mem[i] == prev(cache_instance2/databank3/mem[i]);
+          endif;
+        end foreach;
+at t+5: cache_instance2/Dirty_Array[index];
+at t+5: !o_MEM_Valid_2;
+at t+6:  o_Valid_2;
+at t+7: o_Ready_2;
+at t+7: o_MEM_Data_2 == o_mem_data_2;              //Need to verify o_Mem_address,o_data
+end property;
+
+
+
