@@ -1,3 +1,130 @@
+constraint i_mem_valid := 
+if(State ==STATE_POPULATE)
+  i_MEM_Valid;
+//i_MEM_Valid == !o_Valid;
+endif;
+end constraint;
+
+constraint i_mem_data_read :=
+if(State == STATE_WRITEOUT)
+  i_MEM_Data_Read;
+endif;
+end constraint;
+
+constraint i_mem_last :=
+if (Gen_Count == 3) 
+  i_MEM_Last;
+else
+  !i_MEM_Last;
+endif;
+end constraint;
+
+macro boolean read_hit_o_data :=
+  if(prev(i_BlockOffset) == 0)
+    o_Data == prev(databank/mem[i_Index]); 
+  elseif(prev(i_BlockOffset) == 1)
+    o_Data == prev(databank1/mem[i_Index]); 
+  elseif(prev(i_BlockOffset) == 2)
+    o_Data == prev(databank2/mem[i_Index]); 
+  elseif(prev(i_BlockOffset) == 3)
+    o_Data == prev(databank3/mem[i_Index]); 
+  else
+    o_Data == prev(i_MEM_Data); 
+  endif;
+end macro;
+
+macro boolean write_hit_mem :=
+  if(prev(i_BlockOffset) == 0)
+    databank/mem[prev(i_Index)] == prev(i_Write_Data); 
+  elseif(prev(i_BlockOffset) == 1)
+    databank1/mem[prev(i_Index)] == prev(i_Write_Data); 
+  elseif(prev(i_BlockOffset) == 2)
+    databank2/mem[prev(i_Index)] == prev(i_Write_Data); 
+  elseif(prev(i_BlockOffset) == 3)
+    databank3/mem[prev(i_Index)] == prev(i_Write_Data);   // cant verify output o_Data because r_i_BlockOffset is not assigned in case of writehit.
+  endif;
+end macro;
+
+macro boolean read_miss_o_data(unsigned block_offset; unsigned index):=
+  if(block_offset == 0)
+    o_Data == databank/mem[index]; 
+  elseif(block_offset == 1)
+    o_Data == databank1/mem[index]; 
+  elseif(block_offset == 2)
+    o_Data == databank2/mem[index]; 
+  elseif(block_offset == 3)
+    o_Data == databank3/mem[index]; 
+  else
+    o_Data == prev(i_MEM_Data);
+  endif;
+end macro;
+
+macro boolean stable_databank0(unsigned index):=
+  foreach i in 0..1023:
+    if (i != index)
+      databank/mem[i] == prev(databank/mem[i]);
+    endif;
+  end foreach;
+end macro;
+
+macro boolean stable_databank1(unsigned index):=
+  foreach i in 0..1023:
+    if (i != index)
+      databank1/mem[i] == prev(databank1/mem[i]);
+    endif;
+  end foreach;
+end macro;
+
+macro boolean stable_databank2(unsigned index):=
+  foreach i in 0..1023:
+    if (i != index)
+      databank2/mem[i] == prev(databank2/mem[i]);
+    endif;
+  end foreach;
+end macro;
+
+macro boolean stable_databank3(unsigned index):=
+  foreach i in 0..1023:
+    if (i != index)
+      databank3/mem[i] == prev(databank3/mem[i]);
+    endif;
+  end foreach;
+end macro;
+
+
+macro boolean write_databank0(unsigned block_offset;unsigned index;unsigned i_write_data;unsigned mem_data_0):=
+  if (block_offset == 0)
+    databank/mem[index] == i_write_data;
+  else
+    databank/mem[index] == mem_data_0;
+  endif;
+end macro;
+
+macro boolean write_databank1(unsigned block_offset;unsigned index;unsigned i_write_data;unsigned mem_data_1):=
+  if (block_offset == 1)
+    databank1/mem[index] == i_write_data;
+  else
+    databank1/mem[index] == mem_data_1;
+  endif;
+end macro;
+
+macro boolean write_databank2(unsigned block_offset;unsigned index;unsigned i_write_data;unsigned mem_data_2):=
+  if (block_offset == 2)
+    databank2/mem[index] == i_write_data;
+  else
+    databank2/mem[index] == mem_data_2;
+  endif;
+end macro;
+
+macro boolean write_databank3(unsigned block_offset;unsigned index;unsigned i_write_data;unsigned mem_data_3):=
+  if (block_offset == 3)
+    databank3/mem[index] == i_write_data;
+  else
+    databank3/mem[index] == mem_data_3;
+  endif;
+end macro;
+
+
 property read_hit;
 disable iff: !i_Reset_n;
 assume:
@@ -7,27 +134,18 @@ at t: Tag_Array[i_Index] == i_Tag;
 at t: State == STATE_READY;
 prove:
 at t: o_Ready;
-at t+1: if(prev(i_BlockOffset) == 0)
-          o_Data == prev(databank/mem[i_Index]); 
-         elseif(prev(i_BlockOffset) == 1)
-          o_Data == prev(databank1/mem[i_Index]); 
-        elseif(prev(i_BlockOffset) == 2)
-          o_Data == prev(databank2/mem[i_Index]); 
-        elseif(prev(i_BlockOffset) == 3)
-          o_Data == prev(databank3/mem[i_Index]); 
-        else
-          o_Data == prev(i_MEM_Data); 
-        endif;
+at t+1: read_hit_o_data;
 at t+1: o_Valid;
-at t+1: !o_MEM_Valid;
+//at t+1: !o_MEM_Valid;
 at t+1: o_MEM_Data == prev(o_MEM_Data);  
 at t+1:  o_MEM_Read_Write_n == prev( o_MEM_Read_Write_n); 
 at t+1: o_MEM_Address == prev(o_MEM_Address);
 end property;
 
 
+
 property write_hit;
-disable iff: !i_Reset_n;
+disable iff: !i_Reset_n;	
 assume:
 at t: i_Valid && !o_Valid;
 at t: !i_Read_Write_n && Valid_Array[i_Index];
@@ -35,28 +153,19 @@ at t: Tag_Array[i_Index] == i_Tag;
 at t: State == STATE_READY;
 prove:
 at t: o_Ready;
-at t+1: if(prev(i_BlockOffset) == 0)
-          databank/mem[prev(i_Index)] == prev(i_Write_Data); 
-        endif;
-at t+1: if(prev(i_BlockOffset) == 1)
-          databank1/mem[prev(i_Index)] == prev(i_Write_Data); 
-        endif;
-at t+1: if(prev(i_BlockOffset) == 2)
-          databank2/mem[prev(i_Index)] == prev(i_Write_Data); 
-        endif;
-at t+1: if(prev(i_BlockOffset) == 3)
-          databank3/mem[prev(i_Index)] == prev(i_Write_Data);   // cant verify output o_Data because r_i_BlockOffset is not assigned in case of writehit.
-        endif;
+at t+1: write_hit_mem;
 at t+1: o_Valid;
-at t+1: !o_MEM_Valid;
+//at t+1: !o_MEM_Valid;
 at t+1: o_MEM_Data == prev(o_MEM_Data); 
 at t+1:  o_MEM_Read_Write_n == prev( o_MEM_Read_Write_n); 
-at t+1: o_MEM_Address == prev(o_MEM_Address);
+at t+1: o_MEM_Address == prev(o_MEM_Address);   // need to verify other index
 end property;
+
 
 
 property read_miss;
 disable iff: !i_Reset_n;
+dependencies: i_mem_valid,i_mem_last;
 freeze:
 	index = i_Index@t,
 	block_offset = i_BlockOffset@t,
@@ -71,11 +180,8 @@ at t: !Valid_Array[i_Index] || Tag_Array[i_Index] != i_Tag;
 at t: !Valid_Array[i_Index] || !Dirty_Array[i_Index];
 at t: State == STATE_READY;
 at t: i_Read_Write_n;
-during[t+1,t+4]: i_MEM_Valid;
-during[t+1,t+3]: !i_MEM_Last;
-at t+4: i_MEM_Last;
 prove:
-at t+1: o_MEM_Valid;
+//at t+1: o_MEM_Valid;
 at t+1: o_MEM_Read_Write_n;
 at t+3: databank/mem[index] == mem_data_0;
 at t+4: databank1/mem[index] == mem_data_1; //databank/mem[index] == mem_data_1;// 
@@ -84,21 +190,7 @@ at t+6: databank3/mem[index] == mem_data_3; //bank3writedata == prev(i_MEM_Data)
 at t+5: !o_MEM_Valid;
 at t+6: o_Valid;
 at t+7: o_Ready;
-at t+6: if(block_offset == 0)
-          o_Data == databank/mem[index]; 
-        endif;
-at t+6: if(block_offset == 1)
-          o_Data == databank1/mem[index]; 
-        endif;
-at t+6: if(block_offset == 2)
-          o_Data == databank2/mem[index]; 
-        endif;
-at t+6: if(block_offset == 3)
-          o_Data == databank3/mem[index]; 
-        endif;
-at t+6: if(prev(i_BlockOffset) > 3)
-          o_Data == prev(i_MEM_Data); 
-        endif;
+at t+6: read_miss_o_data(block_offset,index);
 at t+6: o_MEM_Data == o_mem_data;           //Need to verify o_MEM_Address, also check o_MEM_Valid
 end property;
 
@@ -130,7 +222,7 @@ during[t+5,t+8]:i_MEM_Valid;
 during[t+5,t+7]: !i_MEM_Last;
 at t+8: i_MEM_Last;
 prove:
-at t+1: o_MEM_Valid;
+//at t+1: o_MEM_Valid;
 at t+2: !o_MEM_Read_Write_n;
 at t+2: o_MEM_Data == data0; //prev(bank0readdata);
 at t+3: o_MEM_Data == data1; //prev(bank1readdata);
@@ -146,27 +238,15 @@ at t+9: !Dirty_Array[index];
 at t+9: !o_MEM_Valid;
 at t+10: o_Valid;
 at t+11: o_Ready;
-at t+10: if(block_offset == 0)
-          o_Data == databank/mem[index]; 
-        endif;
-at t+10: if(block_offset == 1)
-          o_Data == databank1/mem[index]; 
-        endif;
-at t+10: if(block_offset == 2)
-          o_Data == databank2/mem[index]; 
-        endif;
-at t+10: if(block_offset == 3)
-          o_Data == databank3/mem[index]; 
-        endif;
-at t+10: if(prev(i_BlockOffset) > 3)
-          o_Data == prev(i_MEM_Data); 
-        endif;                                      //Need to verify o_MEM_Address, o_Mem_Read_Write_n is assigned two times in state_writeout.which
-                                                    //one should be checked? also for o_Mem_Valid?
+at t+10:read_miss_o_data(block_offset,index);                       
+                                             //one should be checked? also for o_Mem_Valid?
 end property;
 
 
-property write_miss;
+
+property write_miss_not_valid;
 disable iff: !i_Reset_n;
+dependencies: i_mem_valid,i_mem_last;
 freeze:
 	index = i_Index@t,
 	i_write_data = i_Write_Data@t,
@@ -175,39 +255,32 @@ freeze:
 	mem_data_0 = i_MEM_Data@t+1,
 	mem_data_1 = i_MEM_Data@t+2,
 	mem_data_2 = i_MEM_Data@t+3,
-	mem_data_3 = i_MEM_Data@t+4;
+	mem_data_3 = i_MEM_Data@t+4,
+	data0=databank/mem[index]@t+3,
+	data1=databank1/mem[index]@t+4;
 assume:
 at t: i_Valid && !o_Valid;
 at t: !Valid_Array[i_Index] || Tag_Array[i_Index] != i_Tag;
-at t: !Valid_Array[i_Index] || !Dirty_Array[i_Index];
+at t: !Valid_Array[i_Index] || (Valid_Array[i_Index] && !Dirty_Array[i_Index]) ;
 at t: State == STATE_READY;
 at t: !i_Read_Write_n;
-during[t+1,t+4]: i_MEM_Valid;
-during[t+1,t+3]: !i_MEM_Last;
-at t+4: i_MEM_Last;
 prove:
-at t+1: o_MEM_Valid;
+//at t+1: o_MEM_Valid;
 at t+1: o_MEM_Read_Write_n;
-at t+3: if (block_offset == 0)
-          databank/mem[index] == i_write_data;
-        else
-          databank/mem[index] == mem_data_0;
+at t+3: write_databank0(block_offset,index,i_write_data,mem_data_0);
+at t+3: stable_databank0(index);
+at t+4: write_databank1(block_offset,index,i_write_data,mem_data_1);
+at t+4: stable_databank1(index);
+at t+5: write_databank2(block_offset,index,i_write_data,mem_data_2);
+at t+5: stable_databank2(index);
+at t+6:write_databank3(block_offset,index,i_write_data,mem_data_3);
+at t+6: stable_databank3(index);
+at t+4: if(block_offset == 0)
+          o_Data == data0; 
         endif;
-at t+4: if (block_offset == 1)
-          databank1/mem[index] == i_write_data;
-        else
-          databank1/mem[index] == mem_data_1;
-        endif;
-at t+5: if (block_offset == 2)
-          databank2/mem[index] == i_write_data;
-        else
-          databank2/mem[index] == mem_data_2;
-        endif;
-at t+6: if (block_offset == 3)
-          databank3/mem[index] == i_write_data;
-        else
-          databank3/mem[index] == mem_data_3;   
-        endif;
+//at t+5: if(block_offset == 1)
+//          o_Data == data1; 
+//        endif;
 at t+5: Dirty_Array[index];
 at t+5: !o_MEM_Valid;
 at t+6: o_Valid;
@@ -216,11 +289,58 @@ at t+7: o_MEM_Data == o_mem_data;              //Need to verify o_Mem_address,o_
 end property;
 
 
-property write_miss_dirty_set;
+
+property write_miss_valid;
 disable iff: !i_Reset_n;
+dependencies: i_mem_valid,i_mem_last;
 freeze:
 	index = i_Index@t,
-  data0 = databank/mem[i_Index]@t,
+	i_write_data = i_Write_Data@t,
+	block_offset = i_BlockOffset@t,
+	o_mem_data = o_MEM_Data@t,
+	mem_data_0 = i_MEM_Data@t+1,
+	mem_data_1 = i_MEM_Data@t+2,
+	mem_data_2 = i_MEM_Data@t+3,
+	mem_data_3 = i_MEM_Data@t+4,
+	data0=databank/mem[index]@t+3,
+	data1=databank1/mem[index]@t+4;
+assume:
+at t: i_Valid && !o_Valid;
+at t:  Tag_Array[i_Index] != i_Tag;
+at t: Valid_Array[i_Index] && !Dirty_Array[i_Index];
+at t: State == STATE_READY;
+at t: !i_Read_Write_n;
+prove:
+at t+1: o_MEM_Read_Write_n;
+at t+3: write_databank0(block_offset,index,i_write_data,mem_data_0);
+at t+3: stable_databank0(index);
+at t+4: write_databank1(block_offset,index,i_write_data,mem_data_1);
+at t+4: stable_databank1(index);
+at t+5: write_databank2(block_offset,index,i_write_data,mem_data_2);
+at t+5: stable_databank2(index);
+at t+6:write_databank3(block_offset,index,i_write_data,mem_data_3);
+at t+6: stable_databank3(index);
+at t+4: if(block_offset == 0)
+          o_Data == data0; 
+        endif;
+//at t+5: if(block_offset == 1)
+//          o_Data == data1; 
+//        endif;
+at t+5: Dirty_Array[index];
+at t+5: !o_MEM_Valid;
+at t+6: o_Valid;
+at t+7: o_Ready;
+at t+7: o_MEM_Data == o_mem_data;              //Need to verify o_Mem_address,o_data
+end property;
+
+
+
+property write_miss_dirty_set;
+disable iff: !i_Reset_n;
+dependencies: i_mem_data_read,i_mem_valid,i_mem_last;
+freeze:
+	index = i_Index@t,
+  data0 = databank/mem[index]@t,
 	data1 = databank1/mem[index]@t+1,
 	data2 = databank2/mem[index]@t+2,
 	data3 = databank3/mem[index]@t+3,
@@ -232,18 +352,12 @@ freeze:
 	mem_data_3 = i_MEM_Data@t+8;
 assume:
 at t: i_Valid && !o_Valid;
-at t: Tag_Array[i_Index] != i_Tag;
+at t: !Valid_Array[i_Index] || Tag_Array[i_Index] != i_Tag;
 at t: Valid_Array[i_Index] && Dirty_Array[i_Index];
 at t: State == STATE_READY;
 at t: !i_Read_Write_n;
-during[t+1,t+4]: i_MEM_Data_Read;
-during[t+1,t+3]: !i_MEM_Last;
-at t+4: i_MEM_Last;
-during[t+5,t+8]:i_MEM_Valid;
-during[t+5,t+7]: !i_MEM_Last;
-at t+8: i_MEM_Last;
 prove:
-at t+1: o_MEM_Valid;
+//at t+1: o_MEM_Valid;                (o_MEM_Valid not assigned in case of read and wite hit)
 at t+2: !o_MEM_Read_Write_n;
 at t+2: o_MEM_Data == data0;
 at t+3: o_MEM_Data == data1;
@@ -251,28 +365,27 @@ at t+4: o_MEM_Data == data2;
 at t+5: o_MEM_Data == data3; 
 at t+5: !Dirty_Array[index];
 at t+5: o_MEM_Read_Write_n;
-at t+7: if (block_offset == 0)
-          databank/mem[index] == i_write_data;
-        else
-          databank/mem[index] == mem_data_0;
-        endif;
-at t+8: if (block_offset == 1)
-          databank1/mem[index] == i_write_data;
-        else
-          databank1/mem[index] == mem_data_1;
-        endif;
-at t+9: if (block_offset == 2)
-          databank2/mem[index] == i_write_data;
-        else
-          databank2/mem[index] == mem_data_2;
-        endif;
-at t+10: if (block_offset == 3)
-          databank3/mem[index] == i_write_data;
-        else
-          databank3/mem[index] == mem_data_3;   //Need to verify o_data,o_Mem_address
-        endif;
+at t+7: write_databank0(block_offset,index,i_write_data,mem_data_0);
+at t+7: stable_databank0(index);
+at t+8: write_databank1(block_offset,index,i_write_data,mem_data_1);
+at t+8: stable_databank1(index);
+at t+9: write_databank2(block_offset,index,i_write_data,mem_data_2);
+at t+9: stable_databank2(index);
+at t+10: write_databank3(block_offset,index,i_write_data,mem_data_3);
+at t+10: stable_databank3(index);
 at t+9: Dirty_Array[index];
 at t+9: !o_MEM_Valid;
 at t+10: o_Valid;
 at t+11: o_Ready;
+end property;
+
+
+
+property reset_prop;
+assume:
+  reset_sequence;
+prove:
+at t: State == STATE_READY;
+at t: !o_MEM_Valid;
+//at t:!Valid_Array[0];
 end property;
