@@ -279,6 +279,7 @@ assume:
 at t: i_Valid && !o_Valid;
 at t: !Valid_Array[i_Index] || Tag_Array[i_Index] != i_Tag;
 at t: !Valid_Array[i_Index] || (Valid_Array[i_Index] && !Dirty_Array[i_Index]); // LD: Can simplify this line to !Valid || !Dirty
+//at t: !Valid_Array[i_Index] || ((Tag_Array[i_Index] != i_Tag) && !Dirty_Array[i_Index]); // LD: I think this would cover all you need
 at t: State == STATE_READY;
 at t: !i_Read_Write_n;
 prove:

@@ -28,15 +28,21 @@ macro boolean cache2_state_ready :=
   cache_instance2/State == cache_instance2/STATE_READY
 end macro;
 
+macro unsigned MAX_INDEX :=
+  unsigned((32'd1<<INDEX_WIDTH)-1);
+end macro;
+
 macro boolean cache1_flushed_state:=
-  foreach r in 0..511:  
-           ((cache_instance1/databank/mem[r] == 0) && (cache_instance1/databank1/mem[r] == 0) && (cache_instance1/databank2/mem[r] ==0) &&
-           (cache_instance1/databank3/mem[r] ==0));
-        end foreach
+  foreach r in 0..MAX_INDEX:  
+           ((cache_instance1/databank/mem[r]  == 0) && 
+            (cache_instance1/databank1/mem[r] == 0) && 
+            (cache_instance1/databank2/mem[r] ==0) &&
+            (cache_instance1/databank3/mem[r] ==0));
+        end foreach;
 end macro;
 
 macro boolean cache1_stable_databank0(unsigned index):=
-  foreach i in 0..511:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       cache_instance1/databank/mem[i] == prev(cache_instance1/databank/mem[i]);
     endif;
@@ -44,7 +50,7 @@ macro boolean cache1_stable_databank0(unsigned index):=
 end macro;
 
 macro boolean cache1_stable_databank1(unsigned index):=
-  foreach i in 0..511:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       cache_instance1/databank1/mem[i] == prev(cache_instance1/databank1/mem[i]);
     endif;
@@ -52,7 +58,7 @@ macro boolean cache1_stable_databank1(unsigned index):=
 end macro;
 
 macro boolean cache1_stable_databank2(unsigned index):=
-  foreach i in 0..511:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       cache_instance1/databank2/mem[i] == prev(cache_instance1/databank2/mem[i]);
     endif;
@@ -60,7 +66,7 @@ macro boolean cache1_stable_databank2(unsigned index):=
 end macro;
 
 macro boolean cache1_stable_databank3(unsigned index):=
-  foreach i in 0..511:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       cache_instance1/databank3/mem[i] == prev(cache_instance1/databank3/mem[i]);
     endif;
@@ -101,7 +107,7 @@ end macro;
 
 
 macro boolean cache2_stable_databank0(unsigned index):=
-  foreach i in 0..511:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       cache_instance2/databank/mem[i] == prev(cache_instance2/databank/mem[i]);
     endif;
@@ -109,7 +115,7 @@ macro boolean cache2_stable_databank0(unsigned index):=
 end macro;
 
 macro boolean cache2_stable_databank1(unsigned index):=
-  foreach i in 0..511:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       cache_instance2/databank1/mem[i] == prev(cache_instance2/databank1/mem[i]);
     endif;
@@ -117,7 +123,7 @@ macro boolean cache2_stable_databank1(unsigned index):=
 end macro;
 
 macro boolean cache2_stable_databank2(unsigned index):=
-  foreach i in 0..511:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       cache_instance2/databank2/mem[i] == prev(cache_instance2/databank2/mem[i]);
     endif;
@@ -125,14 +131,17 @@ macro boolean cache2_stable_databank2(unsigned index):=
 end macro;
 
 macro boolean cache2_stable_databank3(unsigned index):=
-  foreach i in 0..511:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       cache_instance2/databank3/mem[i] == prev(cache_instance2/databank3/mem[i]);
     endif;
   end foreach;
 end macro;
 
-
+/*
+ * LD: You have to make sure that the S2QED and the 'normal' properties cover the same cases to compare them.
+ *     
+ */
 property base_write_miss_not_valid;
 disable iff: !i_Reset_n;
 dependencies: i_mem_valid,i_mem_last;
@@ -151,7 +160,7 @@ freeze:
 assume:
 at t: i_Valid && !o_Valid_1;
 at t: !cache_instance1/Valid_Array[index];
-at t:cache_instance1/Tag_Array[index] != tag;
+at t: cache_instance1/Tag_Array[index] != tag; // LD: Does this matter it the Valid bit is not set? I think you need to have a statement like "Valid | (!Tag && !Dirty)"
 at t: cache1_flushed_state;
 at t: cache1_state_ready;
 at t: !i_Read_Write_n;
@@ -185,7 +194,7 @@ freeze:
 assume:
 at t: i_Valid && !o_Valid_1 && !o_Valid_2;
 at t: !cache_instance1/Valid_Array[index] &&  !cache_instance2/Valid_Array[index];
-at t: cache_instance1/Tag_Array[index] != tag && cache_instance2/Tag_Array[index] != tag; 
+at t: cache_instance1/Tag_Array[index] != tag && cache_instance2/Tag_Array[index] != tag; // LD: Same here
 at t: cache1_flushed_state;
 at t: cache1_state_ready;
 at t: cache2_state_ready;
@@ -205,7 +214,7 @@ at t+5: cache_instance2/Dirty_Array[index];
 at t+5: !o_MEM_Valid_2;
 at t+6:  o_Valid_2;
 at t+7: o_Ready_2;
-at t+7: o_MEM_Data_2 == o_mem_data_2;
+at t+7: o_MEM_Data_2 == o_mem_data_2; //LD: Try to use the comparison between the two instances for all commitments except the "stable_databank". See other S2QED property
 end property;
 
 
@@ -233,8 +242,9 @@ at t: cache1_flushed_state;
 at t: cache1_state_ready;
 at t: !i_Read_Write_n;
 prove:
-at t+2: !cache_instance1/o_MEM_Read_Write_n;    //if I use the output signal o_MEM_Read_Write_n_1 which is the top level signal connected to 
+//at t+2: !cache_instance1/o_MEM_Read_Write_n;    //if I use the output signal o_MEM_Read_Write_n_1 which is the top level signal connected to 
                                                 //cache1_instance, then property fails.
+at t+2: !o_MEM_Read_Write_n_1;                  //LD: This works for me?
 at t+2: o_MEM_Data_1 == data0;
 at t+3: o_MEM_Data_1 == data1;
 at t+4: o_MEM_Data_1 == data2;
@@ -273,7 +283,7 @@ freeze:
 	mem_data_2 = i_MEM_Data@t+7,
 	mem_data_3 = i_MEM_Data@t+8;
 assume:
-at t: i_Valid && !o_Valid_1;
+at t: i_Valid && !o_Valid_1 && !o_Valid_2; //LD: Added o_Valid_2 here - this fixed it
 at t: cache_instance1/Tag_Array[index] != tag && cache_instance2/Tag_Array[index] != tag;
 at t: cache_instance1/Valid_Array[index] && cache_instance1/Dirty_Array[index];
 at t: cache_instance2/Valid_Array[index] && cache_instance2/Dirty_Array[index];
@@ -283,9 +293,12 @@ at t: cache2_state_ready;
 at t: !i_Read_Write_n;
 prove:
 //at t+1: o_MEM_Valid;                (o_MEM_Valid not assigned in case of read and wite hit)
-at t+2: !cache_instance2/o_MEM_Read_Write_n; 
-at t+5: !cache_instance2/Dirty_Array[index];
-at t+5: cache_instance2/o_MEM_Read_Write_n;
+//at t+2: !cache_instance2/o_MEM_Read_Write_n; 
+at t+2: o_MEM_Read_Write_n_1 == o_MEM_Read_Write_n_2;
+//at t+5: !cache_instance2/Dirty_Array[index];
+at t+5: cache_instance1/Dirty_Array[index] == cache_instance2/Dirty_Array[index];
+//at t+5: cache_instance2/o_MEM_Read_Write_n;
+at t+5: o_MEM_Read_Write_n_1 == o_MEM_Read_Write_n_2;
 at t+7: cache_instance1/databank/mem[index] == cache_instance2/databank/mem[index];
 at t+7: cache2_stable_databank0(index);
 at t+8: cache_instance1/databank1/mem[index] == cache_instance2/databank1/mem[index];
@@ -294,10 +307,14 @@ at t+9: cache_instance1/databank2/mem[index] == cache_instance2/databank2/mem[in
 at t+9: cache2_stable_databank2(index);
 at t+10: cache_instance1/databank3/mem[index] == cache_instance2/databank3/mem[index];
 at t+10: cache2_stable_databank3(index);
-at t+9: cache_instance2/Dirty_Array[index];
-at t+9: !o_MEM_Valid_2;
-at t+10: o_Valid_2;
-at t+11: o_Ready_2;
+//at t+9: cache_instance2/Dirty_Array[index];
+at t+9: cache_instance1/Dirty_Array[index] == cache_instance2/Dirty_Array[index];
+//at t+9: !o_MEM_Valid_2;
+at t+9: o_MEM_Valid_1 == o_MEM_Valid_2;
+//at t+10: o_Valid_2;
+at t+10: o_Valid_1 == o_Valid_2;
+//at t+11: o_Ready_2;
+at t+11: o_Ready_1 == o_Ready_2;
 end property;
 
 

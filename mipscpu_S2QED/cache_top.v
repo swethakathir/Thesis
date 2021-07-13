@@ -22,20 +22,20 @@ module cache_top	#(
 					// Outputs
 					output o_Ready_1,
 					output o_Ready_2,
-					output reg o_Valid_1,		
-					output reg o_Valid_2,			// If done reading out a value.
+					output /*reg*/ o_Valid_1, //LD: Don't use registered outputs in the miter
+					output /*reg*/ o_Valid_2,			// If done reading out a value.
 					output [DATA_WIDTH-1:0] o_Data_1,
 					output [DATA_WIDTH-1:0] o_Data_2,
 					
 					// Mem Transaction
-					output reg o_MEM_Valid_1,
-					output reg o_MEM_Valid_2,
-					output reg o_MEM_Read_Write_n_1,
-					output reg o_MEM_Read_Write_n_2,
-					output reg [(TAG_WIDTH+INDEX_WIDTH+BLOCK_OFFSET_WIDTH):0] o_MEM_Address_1,	// output 2-byte aligned addresses
-					output reg [(TAG_WIDTH+INDEX_WIDTH+BLOCK_OFFSET_WIDTH):0] o_MEM_Address_2,
-					output reg [DATA_WIDTH-1:0] o_MEM_Data_1,
-					output reg [DATA_WIDTH-1:0] o_MEM_Data_2,
+					output /*reg*/ o_MEM_Valid_1,
+					output /*reg*/ o_MEM_Valid_2,
+					output /*reg*/ o_MEM_Read_Write_n_1,
+					output /*reg*/ o_MEM_Read_Write_n_2,
+					output /*reg*/ [(TAG_WIDTH+INDEX_WIDTH+BLOCK_OFFSET_WIDTH):0] o_MEM_Address_1,	// output 2-byte aligned addresses
+					output /*reg*/ [(TAG_WIDTH+INDEX_WIDTH+BLOCK_OFFSET_WIDTH):0] o_MEM_Address_2,
+					output /*reg*/ [DATA_WIDTH-1:0] o_MEM_Data_1,
+					output /*reg*/ [DATA_WIDTH-1:0] o_MEM_Data_2,
 					input i_MEM_Valid,
 					input i_MEM_Data_Read,
 					input i_MEM_Last,
