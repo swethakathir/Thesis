@@ -59,8 +59,12 @@ macro boolean read_miss_o_data(unsigned block_offset; unsigned index):=
   endif;
 end macro;
 
+macro unsigned MAX_INDEX :=
+  unsigned((32'd1<<INDEX_WIDTH)-1);
+end macro;
+
 macro boolean stable_databank0(unsigned index):=
-  foreach i in 0..1023:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       databank/mem[i] == prev(databank/mem[i]);
     endif;
@@ -68,7 +72,7 @@ macro boolean stable_databank0(unsigned index):=
 end macro;
 
 macro boolean stable_databank1(unsigned index):=
-  foreach i in 0..1023:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       databank1/mem[i] == prev(databank1/mem[i]);
     endif;
@@ -76,7 +80,7 @@ macro boolean stable_databank1(unsigned index):=
 end macro;
 
 macro boolean stable_databank2(unsigned index):=
-  foreach i in 0..1023:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       databank2/mem[i] == prev(databank2/mem[i]);
     endif;
@@ -84,7 +88,7 @@ macro boolean stable_databank2(unsigned index):=
 end macro;
 
 macro boolean stable_databank3(unsigned index):=
-  foreach i in 0..1023:
+  foreach i in 0..MAX_INDEX:
     if (i != index)
       databank3/mem[i] == prev(databank3/mem[i]);
     endif;
@@ -124,7 +128,9 @@ macro boolean write_databank3(unsigned block_offset;unsigned index;unsigned i_wr
   endif;
 end macro;
 
-
+/*
+ * LD: You could add commitments that databanks, Valid_Array, Dirty_Array and Tag_Array remain unchanged
+ */
 property read_hit;
 disable iff: !i_Reset_n;
 assume:
@@ -143,7 +149,10 @@ at t+1: o_MEM_Address == prev(o_MEM_Address);
 end property;
 
 
-
+/*
+ * LD: You could add commitments that Valid_Array, Dirty_Array and Tag_Array remain unchanged
+ *     write_hit_mem only covers one entry of the databank
+ */
 property write_hit;
 disable iff: !i_Reset_n;	
 assume:
@@ -162,7 +171,9 @@ at t+1: o_MEM_Address == prev(o_MEM_Address);   // need to verify other index
 end property;
 
 
-
+/*
+ * LD: Commitments missing that Valid_Array, Dirty_Array and Tag_Array are updated
+ */
 property read_miss;
 disable iff: !i_Reset_n;
 dependencies: i_mem_valid,i_mem_last;
@@ -195,7 +206,10 @@ at t+6: o_MEM_Data == o_mem_data;           //Need to verify o_MEM_Address, also
 end property;
 
 
-
+/*
+ * LD: Probably it didn't work to model the assumptions with constraints?
+ *     Valid_Array and Tag_Array don't show up in the commitments
+ */
 property read_miss_dirty_set;
 disable iff: !i_Reset_n;
 freeze:
@@ -243,7 +257,10 @@ at t+10:read_miss_o_data(block_offset,index);
 end property;
 
 
-
+/*
+ * LD: Valid_Array and Tag_Array don't show up in the commitments
+ * LD: Coveres more cases than only !valid
+ */
 property write_miss_not_valid;
 disable iff: !i_Reset_n;
 dependencies: i_mem_valid,i_mem_last;
@@ -261,7 +278,7 @@ freeze:
 assume:
 at t: i_Valid && !o_Valid;
 at t: !Valid_Array[i_Index] || Tag_Array[i_Index] != i_Tag;
-at t: !Valid_Array[i_Index] || (Valid_Array[i_Index] && !Dirty_Array[i_Index]) ;
+at t: !Valid_Array[i_Index] || (Valid_Array[i_Index] && !Dirty_Array[i_Index]); // LD: Can simplify this line to !Valid || !Dirty
 at t: State == STATE_READY;
 at t: !i_Read_Write_n;
 prove:
@@ -289,7 +306,9 @@ at t+7: o_MEM_Data == o_mem_data;              //Need to verify o_Mem_address,o_
 end property;
 
 
-
+/*
+ * LD: Already covered by write_miss_not_valid
+ */
 property write_miss_valid;
 disable iff: !i_Reset_n;
 dependencies: i_mem_valid,i_mem_last;
@@ -333,8 +352,9 @@ at t+7: o_Ready;
 at t+7: o_MEM_Data == o_mem_data;              //Need to verify o_Mem_address,o_data
 end property;
 
-
-
+/*
+ * LD: Tag_Array and Valid_Array don't show up in the commitments
+ */
 property write_miss_dirty_set;
 disable iff: !i_Reset_n;
 dependencies: i_mem_data_read,i_mem_valid,i_mem_last;
