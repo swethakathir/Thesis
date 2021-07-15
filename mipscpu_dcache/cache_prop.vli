@@ -128,9 +128,32 @@ macro boolean write_databank3(unsigned block_offset;unsigned index;unsigned i_wr
   endif;
 end macro;
 
-/*
- * LD: You could add commitments that databanks, Valid_Array, Dirty_Array and Tag_Array remain unchanged
- */
+macro boolean stable_valid_array(unsigned index):=
+  foreach i in 0..MAX_INDEX:
+    if (i != index)
+       Tag_Array[i] == prev(Tag_Array[i]);
+    endif;
+  end foreach;
+end macro;
+
+
+macro boolean stable_tag_array(unsigned index):=
+  foreach i in 0..MAX_INDEX:
+    if (i != index)
+       Valid_Array[i] == prev(Valid_Array[i]);
+    endif;
+  end foreach;
+end macro;
+
+macro boolean stable_dirty_array(unsigned index):=
+  foreach i in 0..MAX_INDEX:
+    if (i != index)
+       Dirty_Array[i] == prev(Dirty_Array[i]);
+    endif;
+  end foreach;
+end macro;
+
+
 property read_hit;
 disable iff: !i_Reset_n;
 assume:
@@ -146,13 +169,11 @@ at t+1: o_Valid;
 at t+1: o_MEM_Data == prev(o_MEM_Data);  
 at t+1:  o_MEM_Read_Write_n == prev( o_MEM_Read_Write_n); 
 at t+1: o_MEM_Address == prev(o_MEM_Address);
+at t+1: Valid_Array == prev(Valid_Array) && Tag_Array == prev(Tag_Array) && Dirty_Array == prev(Dirty_Array);
 end property;
 
 
-/*
- * LD: You could add commitments that Valid_Array, Dirty_Array and Tag_Array remain unchanged
- *     write_hit_mem only covers one entry of the databank
- */
+
 property write_hit;
 disable iff: !i_Reset_n;	
 assume:
@@ -171,15 +192,14 @@ at t+1: o_MEM_Address == prev(o_MEM_Address);   // need to verify other index
 end property;
 
 
-/*
- * LD: Commitments missing that Valid_Array, Dirty_Array and Tag_Array are updated
- */
+
 property read_miss;
 disable iff: !i_Reset_n;
 dependencies: i_mem_valid,i_mem_last;
 freeze:
 	index = i_Index@t,
 	block_offset = i_BlockOffset@t,
+	tag = i_Tag@t, 
 	o_mem_data = o_MEM_Data@t,
 	mem_data_0 = i_MEM_Data@t+1,
 	mem_data_1 = i_MEM_Data@t+2,
@@ -199,6 +219,11 @@ at t+4: databank1/mem[index] == mem_data_1; //databank/mem[index] == mem_data_1;
 at t+5: databank2/mem[index] == mem_data_2; //bank2writedata == prev(i_MEM_Data);
 at t+6: databank3/mem[index] == mem_data_3; //bank3writedata == prev(i_MEM_Data);
 at t+5: !o_MEM_Valid;
+at t+5: Valid_Array[index] && Tag_Array[index] == tag;
+at t+5: stable_valid_array(index);
+at t+5: stable_tag_array(index);
+at t+5: !Dirty_Array[index]; 
+at t+5: stable_dirty_array(index);
 at t+6: o_Valid;
 at t+7: o_Ready;
 at t+6: read_miss_o_data(block_offset,index);
@@ -206,14 +231,13 @@ at t+6: o_MEM_Data == o_mem_data;           //Need to verify o_MEM_Address, also
 end property;
 
 
-/*
- * LD: Probably it didn't work to model the assumptions with constraints?
- *     Valid_Array and Tag_Array don't show up in the commitments
- */
+
 property read_miss_dirty_set;
 disable iff: !i_Reset_n;
+dependencies: i_mem_data_read,i_mem_valid,i_mem_last;
 freeze:
 	index = i_Index@t,
+	tag = i_Tag@t, 
 	data0 = databank/mem[i_Index]@t,
 	data1 = databank1/mem[index]@t+1,
 	data2 = databank2/mem[index]@t+2,
@@ -229,12 +253,6 @@ at t: Tag_Array[i_Index] != i_Tag;
 at t: Valid_Array[i_Index] && Dirty_Array[i_Index];
 at t: State == STATE_READY;
 at t: i_Read_Write_n;
-during[t+1,t+4]: i_MEM_Data_Read;
-during[t+1,t+3]: !i_MEM_Last;
-at t+4: i_MEM_Last;
-during[t+5,t+8]:i_MEM_Valid;
-during[t+5,t+7]: !i_MEM_Last;
-at t+8: i_MEM_Last;
 prove:
 //at t+1: o_MEM_Valid;
 at t+2: !o_MEM_Read_Write_n;
@@ -249,6 +267,10 @@ at t+8: databank1/mem[index] == mem_data_1;
 at t+9: databank2/mem[index] == mem_data_2;
 at t+10: databank3/mem[index] == mem_data_3;
 at t+9: !Dirty_Array[index];
+at t+9: stable_dirty_array(index);
+at t+9: Valid_Array[index] && Tag_Array[index] == tag;
+at t+9: stable_valid_array(index);
+at t+9: stable_tag_array(index);
 at t+9: !o_MEM_Valid;
 at t+10: o_Valid;
 at t+11: o_Ready;
@@ -257,15 +279,13 @@ at t+10:read_miss_o_data(block_offset,index);
 end property;
 
 
-/*
- * LD: Valid_Array and Tag_Array don't show up in the commitments
- * LD: Coveres more cases than only !valid
- */
+
 property write_miss_not_valid;
 disable iff: !i_Reset_n;
 dependencies: i_mem_valid,i_mem_last;
 freeze:
 	index = i_Index@t,
+	tag = i_Tag@t,
 	i_write_data = i_Write_Data@t,
 	block_offset = i_BlockOffset@t,
 	o_mem_data = o_MEM_Data@t,
@@ -277,9 +297,10 @@ freeze:
 	data1=databank1/mem[index]@t+4;
 assume:
 at t: i_Valid && !o_Valid;
-at t: !Valid_Array[i_Index] || Tag_Array[i_Index] != i_Tag;
-at t: !Valid_Array[i_Index] || (Valid_Array[i_Index] && !Dirty_Array[i_Index]); // LD: Can simplify this line to !Valid || !Dirty
-//at t: !Valid_Array[i_Index] || ((Tag_Array[i_Index] != i_Tag) && !Dirty_Array[i_Index]); // LD: I think this would cover all you need
+//at t: !Valid_Array[i_Index] || Tag_Array[i_Index] != i_Tag;
+//at t: !Valid_Array[i_Index] || (Valid_Array[i_Index] && !Dirty_Array[i_Index]) ;
+at t: !Valid_Array[i_Index] || (Valid_Array[i_Index] && Tag_Array[i_Index] != i_Tag && !Dirty_Array[i_Index]) ; // this assumption covers both
+                                                                                                //property but doesnt hold
 at t: State == STATE_READY;
 at t: !i_Read_Write_n;
 prove:
@@ -293,13 +314,17 @@ at t+5: write_databank2(block_offset,index,i_write_data,mem_data_2);
 at t+5: stable_databank2(index);
 at t+6:write_databank3(block_offset,index,i_write_data,mem_data_3);
 at t+6: stable_databank3(index);
-at t+4: if(block_offset == 0)
-          o_Data == data0; 
-        endif;
+//at t+4: if(block_offset == 0)
+//          o_Data == data0; 
+//        endif;
 //at t+5: if(block_offset == 1)
 //          o_Data == data1; 
 //        endif;
 at t+5: Dirty_Array[index];
+at t+5: Valid_Array[index] && Tag_Array[index] == tag;
+at t+5: stable_valid_array(index);
+at t+5: stable_tag_array(index);
+at t+5: stable_dirty_array(index);
 at t+5: !o_MEM_Valid;
 at t+6: o_Valid;
 at t+7: o_Ready;
@@ -307,9 +332,7 @@ at t+7: o_MEM_Data == o_mem_data;              //Need to verify o_Mem_address,o_
 end property;
 
 
-/*
- * LD: Already covered by write_miss_not_valid
- */
+
 property write_miss_valid;
 disable iff: !i_Reset_n;
 dependencies: i_mem_valid,i_mem_last;
@@ -353,14 +376,14 @@ at t+7: o_Ready;
 at t+7: o_MEM_Data == o_mem_data;              //Need to verify o_Mem_address,o_data
 end property;
 
-/*
- * LD: Tag_Array and Valid_Array don't show up in the commitments
- */
+
+
 property write_miss_dirty_set;
 disable iff: !i_Reset_n;
 dependencies: i_mem_data_read,i_mem_valid,i_mem_last;
 freeze:
 	index = i_Index@t,
+	tag = i_Tag@t,
   data0 = databank/mem[index]@t,
 	data1 = databank1/mem[index]@t+1,
 	data2 = databank2/mem[index]@t+2,
@@ -373,18 +396,16 @@ freeze:
 	mem_data_3 = i_MEM_Data@t+8;
 assume:
 at t: i_Valid && !o_Valid;
-at t: !Valid_Array[i_Index] || Tag_Array[i_Index] != i_Tag;
-at t: Valid_Array[i_Index] && Dirty_Array[i_Index];
+at t: Valid_Array[i_Index] && Tag_Array[i_Index] != i_Tag && Dirty_Array[i_Index];
 at t: State == STATE_READY;
 at t: !i_Read_Write_n;
 prove:
 //at t+1: o_MEM_Valid;                (o_MEM_Valid not assigned in case of read and wite hit)
-at t+2: !o_MEM_Read_Write_n;
+//at t+2: !o_MEM_Read_Write_n;
 at t+2: o_MEM_Data == data0;
 at t+3: o_MEM_Data == data1;
 at t+4: o_MEM_Data == data2;
 at t+5: o_MEM_Data == data3; 
-at t+5: !Dirty_Array[index];
 at t+5: o_MEM_Read_Write_n;
 at t+7: write_databank0(block_offset,index,i_write_data,mem_data_0);
 at t+7: stable_databank0(index);
@@ -395,6 +416,10 @@ at t+9: stable_databank2(index);
 at t+10: write_databank3(block_offset,index,i_write_data,mem_data_3);
 at t+10: stable_databank3(index);
 at t+9: Dirty_Array[index];
+at t+9: Valid_Array[index] && Tag_Array[index] == tag;
+at t+9: stable_valid_array(index);
+at t+9: stable_tag_array(index);
+at t+9: stable_dirty_array(index);
 at t+9: !o_MEM_Valid;
 at t+10: o_Valid;
 at t+11: o_Ready;
