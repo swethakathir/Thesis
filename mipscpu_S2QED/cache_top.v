@@ -6,7 +6,7 @@ module cache_top	#(
 					parameter BLOCK_OFFSET_WIDTH = 2,
 					parameter ASSOCIATIVITY = 1, // for n-way associative caching
 					// TODO adjust index_width to consider associativity
-					parameter INDEX_WIDTH = 9,  // number of sets in bits (size of cache)  9= 8kb(512*16),10 = 16kb, 11 = 32kb, 12 = 64kb.
+					parameter INDEX_WIDTH = 11,  // number of sets in bits (size of cache)  9= 8kb(512*16),10 = 16kb, 11 = 32kb, 12 = 64kb.
 					parameter TAG_WIDTH = 21 - INDEX_WIDTH - BLOCK_OFFSET_WIDTH,
 					parameter MEM_MASK_WIDTH = 3 // What's this for?
 				)
