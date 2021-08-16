@@ -1,0 +1,64 @@
+constraint index1_nomatch :=
+cluster_1/memory_addr[GMEM_ADDR_WIDTH - 1:0] != axi_addr[GMEM_ADDR_WIDTH - 1:0]; 
+end constraint;
+
+constraint index2_nomatch :=
+cluster_2/memory_addr[GMEM_ADDR_WIDTH - 1:0] == cluster_1/memory_addr[GMEM_ADDR_WIDTH - 1:0];  
+end constraint;
+
+//need to have same instruction idata(fetched from local memory instantiated under core) which is a internal signal of black boxed module core
+
+constraint data :=
+foreach i in 0..15:
+  cluster_1/core_memory_write_val[i] == cluster_2/core_memory_write_val[i];
+//  cluster_1/idata[i] == cluster_2/idata[i];
+end foreach;
+end constraint;
+
+
+property base_dualport_write_sram;
+disable iff: !reset;
+dependencies: index1_nomatch;
+freeze:
+  index1 = cluster_1/memory_addr[GMEM_ADDR_WIDTH - 1:0]@t,
+	index2 = axi_addr[GMEM_ADDR_WIDTH - 1:0]@t;	
+assume:
+  at t: cluster_1/global_mem_write && axi_we; 
+  at t: foreach i in 0..GLOBAL_MEMORY_SIZE-1:  
+           cluster_1/global_memory/data[i] == 0;
+        end foreach;
+prove:
+  // This statement specifies data[index]
+  at t+1: cluster_1/global_memory/data[index1] == prev(cluster_1/core_memory_write_val[device_core_id_1]);   // first port write
+  at t+1: cluster_1/global_memory/data[index2] == prev(axi_data);                                           // second port write 
+  at t+1: cluster_1/global_mem_q == prev(cluster_1/core_memory_write_val[device_core_id_1]);               //q_a -- first read output
+  at t+1: axi_q_1 == prev(axi_data);                                                                      //q_b -- second read output
+  // This statement specifies all other entries in data reg
+  at t+1: foreach i in 0..GLOBAL_MEMORY_SIZE-1:
+            if (i != index1 && i != index2)
+              cluster_1/global_memory/data[i] == prev(cluster_1/global_memory/data[i]);
+            endif;
+          end foreach;          
+end property;
+
+property S2qed_dualport_write_sram;
+disable iff: !reset;
+dependencies: index1_nomatch,index2_nomatch,data;
+freeze:
+  index1 = cluster_1/memory_addr[GMEM_ADDR_WIDTH - 1:0]@t,
+	index2 = axi_addr[GMEM_ADDR_WIDTH - 1:0]@t;	
+assume:
+  at t: cluster_2/global_mem_write && cluster_1/global_mem_write && axi_we; 
+  at t: foreach i in 0..GLOBAL_MEMORY_SIZE-1:  
+          cluster_1/global_memory/data[i] == 0;
+        end foreach;
+prove:
+ at t+1: cluster_1/global_memory/data[index2] == cluster_2/global_memory/data[index2];
+ at t+1: cluster_1/global_memory/data[index1] == cluster_2/global_memory/data[index1];
+ at t+1: axi_q_1 == axi_q_2;
+ at t+1: foreach i in 0..GLOBAL_MEMORY_SIZE-1:
+           if (i != index1 && i != index2)
+             cluster_2/global_memory/data[i] == prev(cluster_2/global_memory/data[i]);
+           endif;
+         end foreach;  
+end property;
