@@ -1,0 +1,81 @@
+constraint index :=
+memory_addr[GMEM_ADDR_WIDTH - 1:0] != axi_addr[GMEM_ADDR_WIDTH - 1:0]; 
+end constraint;
+
+
+property dualport_read_sram;
+disable iff: !reset;
+freeze:
+	index1 = memory_addr[GMEM_ADDR_WIDTH - 1:0]@t,
+	index2 = axi_addr[GMEM_ADDR_WIDTH - 1:0]@t;	
+assume:
+  at t: !global_mem_write && !axi_we;  
+prove:
+  at t+1: global_mem_q == global_memory/data[index1]; //q_a -- first read output
+  at t+1: axi_q == global_memory/data[index2];        //q_b -- second read output 
+  // This statement specifies all other entries in data reg
+  at t+1: global_memory/data == prev(global_memory/data);
+end property;
+
+
+property port1_read_port2_write_sram;
+disable iff: !reset;
+freeze:
+	data1 = global_memory/data[memory_addr[GMEM_ADDR_WIDTH - 1:0]]@t,
+	index2 = axi_addr[GMEM_ADDR_WIDTH - 1:0]@t;	
+assume:
+  at t: !global_mem_write && axi_we;  
+prove:
+  at t+1: global_mem_q == data1;   //q_a -- first read output
+  at t+1: axi_q == prev(axi_data); //q_b -- second read output
+  at t+1: global_memory/data[index2] == prev(axi_data);  // second port write
+  // This statement specifies all other entries in data reg
+  at t+1: foreach i in 0..GLOBAL_MEMORY_SIZE-1:
+            if (i != index2)
+              global_memory/data[i] == prev(global_memory/data[i]);
+            endif;
+          end foreach;
+end property;
+
+
+property port1_write_port2_read_sram;
+disable iff: !reset;
+freeze:
+  index1 = memory_addr[GMEM_ADDR_WIDTH - 1:0]@t,
+	data2 = global_memory/data[axi_addr[GMEM_ADDR_WIDTH - 1:0]]@t;	
+assume:
+  at t: global_mem_write && !axi_we;  
+prove:
+  at t+1: global_mem_q == prev(core_memory_write_val[device_core_id]);   //q_a -- first read output
+  at t+1: axi_q == data2;                                                //q_b -- second read output
+  at t+1: global_memory/data[index1] == prev(core_memory_write_val[device_core_id]);  // first port write
+    // This statement specifies all other entries in data reg
+  at t+1: foreach i in 0..GLOBAL_MEMORY_SIZE-1:
+            if (i != index1)
+              global_memory/data[i] == prev(global_memory/data[i]);
+            endif;
+          end foreach; 
+end property;
+
+	
+property port1_write_port2_write_sram;
+disable iff: !reset;
+dependencies: index;
+freeze:
+  index1 = memory_addr[GMEM_ADDR_WIDTH - 1:0]@t,
+	index2 = axi_addr[GMEM_ADDR_WIDTH - 1:0]@t;	
+assume:
+  at t: global_mem_write && axi_we; 
+prove:
+  at t+1: global_mem_q == prev(core_memory_write_val[device_core_id]);   //q_a -- first read output
+  at t+1: axi_q == prev(axi_data);                                      //q_b -- second read output
+  at t+1: global_memory/data[index1] == prev(core_memory_write_val[device_core_id]);  // first port write
+  at t+1: global_memory/data[index2] == prev(axi_data);                              // second port write 
+  // This statement specifies all other entries in data reg
+  at t+1: foreach i in 0..GLOBAL_MEMORY_SIZE-1:
+            if (i != index1 && i != index2)
+              global_memory/data[i] == prev(global_memory/data[i]);
+            endif;
+          end foreach; 
+end property;
+
