@@ -9,12 +9,39 @@ freeze:
 	index1 = memory_addr[GMEM_ADDR_WIDTH - 1:0]@t,
 	index2 = axi_addr[GMEM_ADDR_WIDTH - 1:0]@t;	
 assume:
-  at t: !global_mem_write && !axi_we;  
+  at t: !core_memory_wren[device_core_id] && core_memory_rden[device_core_id] && !axi_we;  
 prove:
+  at t: foreach i in 0..NUM_CORES-1:
+          if (core_enable[i])
+            device_core_id == i;
+          endif;
+        end foreach;
+  at t:  device_addr == core_memory_addr[device_core_id][9:0];
+  at t: !device_write_en && !global_mem_write;
+  at t: if (memory_addr[15:10] == 6'b111111)
+          device_read_en;
+        else
+          !device_read_en;
+        endif;
+  at t: device_data_out == core_memory_write_val[device_core_id];
   at t+1: global_mem_q == global_memory/data[index1]; //q_a -- first read output
-  at t+1: axi_q == global_memory/data[index2];        //q_b -- second read output 
+  at t+1: axi_q == prev(global_memory/data[index2]);        //q_b -- second read output 
   // This statement specifies all other entries in data reg
-  at t+1: global_memory/data == prev(global_memory/data);
+   at t+1: global_memory/data == prev(global_memory/data);
+  
+end property;
+
+property arbiter;
+disable  iff: !reset;
+assume:
+  at t: foreach i in 0..NUM_CORES:
+          core_request[i]
+        end foreach;
+prove:
+at t+1: foreach i in 0..NUM_CORES:
+          core_enable[i]
+        end foreach;
+
 end property;
 
 
@@ -24,8 +51,21 @@ freeze:
 	data1 = global_memory/data[memory_addr[GMEM_ADDR_WIDTH - 1:0]]@t,
 	index2 = axi_addr[GMEM_ADDR_WIDTH - 1:0]@t;	
 assume:
-  at t: !global_mem_write && axi_we;  
+  at t: !core_memory_wren[device_core_id] && core_memory_rden[device_core_id] && axi_we;  
 prove:
+    at t: foreach i in 0..NUM_CORES-1:
+          if (core_enable[i])
+            device_core_id == i;
+          endif;
+        end foreach;
+  at t:  device_addr == core_memory_addr[device_core_id][9:0];
+  at t: !device_write_en && !global_mem_write;
+  at t: if (memory_addr[15:10] == 6'b111111)
+          device_read_en;
+        else
+          !device_read_en;
+        endif;
+  at t: device_data_out == core_memory_write_val[device_core_id];
   at t+1: global_mem_q == data1;   //q_a -- first read output
   at t+1: axi_q == prev(axi_data); //q_b -- second read output
   at t+1: global_memory/data[index2] == prev(axi_data);  // second port write
@@ -44,8 +84,16 @@ freeze:
   index1 = memory_addr[GMEM_ADDR_WIDTH - 1:0]@t,
 	data2 = global_memory/data[axi_addr[GMEM_ADDR_WIDTH - 1:0]]@t;	
 assume:
-  at t: global_mem_write && !axi_we;  
+  at t: core_memory_wren[device_core_id] && (core_memory_addr[device_core_id][15:10] != 6'b111111) && !axi_we;  
 prove:
+    at t: foreach i in 0..NUM_CORES-1:
+          if (core_enable[i])
+            device_core_id == i;
+          endif;
+        end foreach;
+  at t:  device_addr == core_memory_addr[device_core_id][9:0];
+  at t: !device_write_en && !device_read_en;
+  at t: device_data_out == core_memory_write_val[device_core_id];
   at t+1: global_mem_q == prev(core_memory_write_val[device_core_id]);   //q_a -- first read output
   at t+1: axi_q == data2;                                                //q_b -- second read output
   at t+1: global_memory/data[index1] == prev(core_memory_write_val[device_core_id]);  // first port write
@@ -65,8 +113,16 @@ freeze:
   index1 = memory_addr[GMEM_ADDR_WIDTH - 1:0]@t,
 	index2 = axi_addr[GMEM_ADDR_WIDTH - 1:0]@t;	
 assume:
-  at t: global_mem_write && axi_we; 
+  at t: core_memory_wren[device_core_id] && (core_memory_addr[device_core_id][15:10] != 6'b111111) && axi_we; 
 prove:
+  at t: foreach i in 0..NUM_CORES-1:
+          if (core_enable[i])
+            device_core_id == i;
+          endif;
+        end foreach;
+  at t:  device_addr == core_memory_addr[device_core_id][9:0];
+  at t: !device_write_en && !device_read_en;
+  at t: device_data_out == core_memory_write_val[device_core_id];
   at t+1: global_mem_q == prev(core_memory_write_val[device_core_id]);   //q_a -- first read output
   at t+1: axi_q == prev(axi_data);                                      //q_b -- second read output
   at t+1: global_memory/data[index1] == prev(core_memory_write_val[device_core_id]);  // first port write
